@@ -1,0 +1,14 @@
+# Overlapping high-resolution image tiling for unchanged PD-YOLO inference.
+default:
+  tiling: true
+  tile_width: 640
+  tile_height: 640
+  overlap_ratio: 0.15
+  confidence_threshold: 0.25
+  nms_iou_threshold: 0.70
+experiments:
+  - {name: baseline, tiling: false}
+  - {name: tile_2x2_no_overlap, tiling: true, overlap_ratio: 0.00}
+  - {name: tile_2x2_10pct, tiling: true, overlap_ratio: 0.10}
+  - {name: tile_2x2_15pct, tiling: true, overlap_ratio: 0.15}
+  - {name: tile_2x2_20pct, tiling: true, overlap_ratio: 0.20}

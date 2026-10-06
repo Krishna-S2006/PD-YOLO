@@ -48,7 +48,6 @@ from ultralytics.utils.torch_utils import (
     select_device,
     strip_optimizer,
 )
-from ultralytics.nn.extra_modules.kernel_warehouse import get_temperature
 
 
 class BaseTrainer:
@@ -253,12 +252,12 @@ class BaseTrainer:
             if any(x in k for x in freeze_layer_names):
                 LOGGER.info(f"Freezing layer '{k}'")
                 v.requires_grad = False
-            # elif not v.requires_grad:
-            #     LOGGER.info(
-            #         f"WARNING ⚠️ setting 'requires_grad=True' for frozen layer '{k}'. "
-            #         "See ultralytics.engine.trainer for customization of frozen layers."
-            #     )
-            #     v.requires_grad = True
+            elif not v.requires_grad:
+                LOGGER.info(
+                    f"WARNING ⚠️ setting 'requires_grad=True' for frozen layer '{k}'. "
+                    "See ultralytics.engine.trainer for customization of frozen layers."
+                )
+                v.requires_grad = True
 
         # Check AMP
         self.amp = torch.tensor(self.args.amp).to(self.device)  # True or False
@@ -370,11 +369,7 @@ class BaseTrainer:
                         )
                         if "momentum" in x:
                             x["momentum"] = np.interp(ni, xi, [self.args.warmup_momentum, self.args.momentum])
-                
-                if hasattr(self.model, 'net_update_temperature'):
-                    temp = get_temperature(i + 1, epoch, len(self.train_loader), temp_epoch=20, temp_init_value=1.0)
-                    self.model.net_update_temperature(temp)
-                
+
                 # Forward
                 with torch.cuda.amp.autocast(self.amp):
                     batch = self.preprocess_batch(batch)

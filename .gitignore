@@ -1,0 +1,26 @@
+# Datasets and generated detection data
+dataset/
+runs/
+
+# Model weights and training artifacts
+*.pt
+*.onnx
+*.engine
+*.weights
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ultralytics and dataset caches
+*.cache
+
+# Local environments and secrets
+.venv/
+venv/
+env/
+.env
+
+# Notebook checkpoints
+.ipynb_checkpoints/
