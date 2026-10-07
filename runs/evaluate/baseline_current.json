@@ -1,0 +1,13 @@
+{
+  "mode": "baseline",
+  "images": 67,
+  "precision": 0.526723752686148,
+  "recall": 0.4881367730979657,
+  "mAP50": 0.4888751938458723,
+  "mAP50-95": 0.2786671847830208,
+  "inference_time": 0.022256914923686897,
+  "FPS": 44.92985678512664,
+  "tile_width": null,
+  "tile_height": null,
+  "overlap_ratio": null
+}

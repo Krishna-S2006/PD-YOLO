@@ -1,12 +1,6 @@
 # Datasets and generated detection data
 dataset/
 
-# Model weights and training artifacts
-*.pt
-*.onnx
-*.engine
-*.weights
-
 # Python-generated files
 __pycache__/
 *.py[cod]

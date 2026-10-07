@@ -19,3 +19,4 @@ def test_global_nms_removes_overlapping_duplicate():
     detections=[Detection(np.array([900,480,1100,650]),.91,0),Detection(np.array([902,482,1102,652]),.87,0),Detection(np.array([902,482,1102,652]),.87,1)]
     kept=global_nms(detections,.5)
     assert len(kept)==2 and any(d.class_id==1 for d in kept)
+

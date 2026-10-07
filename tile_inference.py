@@ -77,6 +77,16 @@ def _iou(one: np.ndarray, many: np.ndarray) -> np.ndarray:
     return inter / np.maximum(union, 1e-9)
 
 
+def _touches_internal_tile_edge(box: np.ndarray, tile: Tile, image_width: int, image_height: int,
+                    margin: int = 2) -> bool:
+        """Identify boxes likely clipped by a tile boundary rather than the image boundary."""
+        tile_height, tile_width = tile.image.shape[:2]
+        return ((tile.x > 0 and box[0] <= margin) or
+            (tile.y > 0 and box[1] <= margin) or
+            (tile.x + tile_width < image_width and box[2] >= tile_width - margin) or
+            (tile.y + tile_height < image_height and box[3] >= tile_height - margin))
+
+
 def global_nms(detections: Iterable[Detection], iou_threshold: float = 0.7) -> list[Detection]:
     """Standard class-aware NMS after all tile coordinates have been restored."""
     detections = list(detections)
@@ -100,11 +110,13 @@ class TiledInference:
     """Reuse one loaded Ultralytics PD-YOLO model over original-resolution tiles."""
 
     def __init__(self, model, tile_width: int = 640, tile_height: int = 640, overlap_ratio: float = 0.15,
-                 confidence_threshold: float = 0.25, nms_iou_threshold: float = 0.7, **predict_kwargs):
+                 confidence_threshold: float = 0.25, nms_iou_threshold: float = 0.7,
+                 **predict_kwargs):
         self.model = model
         self.generator = TileGenerator(tile_width, tile_height, overlap_ratio)
         self.confidence_threshold, self.nms_iou_threshold = confidence_threshold, nms_iou_threshold
         self.predict_kwargs = predict_kwargs
+
 
     def predict(self, image: np.ndarray) -> tuple[list[Detection], list[Tile]]:
         height, width = image.shape[:2]
@@ -115,8 +127,9 @@ class TiledInference:
                                         iou=self.nms_iou_threshold, verbose=False, **self.predict_kwargs)[0]
             if result.boxes is None or len(result.boxes) == 0:
                 continue
-            boxes = clip_and_translate(result.boxes.xyxy.cpu().numpy(), tile.x, tile.y, width, height)
-            for box, confidence, class_id in zip(boxes, result.boxes.conf.cpu().numpy(), result.boxes.cls.cpu().numpy()):
+            local_boxes = result.boxes.xyxy.cpu().numpy()
+            boxes = clip_and_translate(local_boxes, tile.x, tile.y, width, height)
+            for local_box, box, confidence, class_id in zip(local_boxes, boxes, result.boxes.conf.cpu().numpy(), result.boxes.cls.cpu().numpy()):
                 if box[2] > box[0] and box[3] > box[1]:
                     detections.append(Detection(box, float(confidence), int(class_id)))
         return global_nms(detections, self.nms_iou_threshold), tiles
