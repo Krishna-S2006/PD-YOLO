@@ -1,6 +1,5 @@
 # Datasets and generated detection data
 dataset/
-runs/
 
 # Model weights and training artifacts
 *.pt
