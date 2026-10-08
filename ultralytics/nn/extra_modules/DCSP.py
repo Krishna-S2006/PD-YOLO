@@ -55,13 +55,36 @@ class DCNv2(nn.Module):
     def forward(self, x):
         offset_mask = self.conv_offset_mask(x)
         o1, o2, mask = torch.chunk(offset_mask, 3, dim=1)
-        offset = torch.cat((o1, o2), dim=1)
         mask = torch.sigmoid(mask)
-        x = torch.ops.torchvision.deform_conv2d(x, self.weight, offset, mask, self.bias, self.stride[0], self.stride[1],
-            self.padding[0], self.padding[1],self.dilation[0], self.dilation[1], self.groups, self.deformable_groups, True)
-        x = self.bn(x)
-        x = self.act(x)
-        return x
+        if self.groups != 1 or self.deformable_groups != 1:
+            raise NotImplementedError('The PyTorch DCNv2 fallback currently supports groups=1 and deformable_groups=1.')
+
+        # Preserve deformable offsets and masks without invoking the
+        # torchvision CUDA extension, which can crash on some Windows builds.
+        n, _, h, w = x.shape
+        _, _, out_h, out_w = o1.shape
+        ky, kx = self.kernel_size
+        sy, sx = self.stride
+        py, px = self.padding
+        dy, dx = self.dilation
+        yy = torch.arange(out_h, device=x.device, dtype=x.dtype) * sy - py
+        xx = torch.arange(out_w, device=x.device, dtype=x.dtype) * sx - px
+        base_y, base_x = torch.meshgrid(yy, xx, indexing='ij')
+        result = x.new_zeros((n, self.out_channels, out_h, out_w))
+
+        for kernel_index in range(ky * kx):
+            iy, ix = divmod(kernel_index, kx)
+            sample_y = base_y + iy * dy + o1[:, kernel_index]
+            sample_x = base_x + ix * dx + o2[:, kernel_index]
+            norm_y = sample_y.mul(2 / (h - 1)).sub(1) if h > 1 else sample_y * 0
+            norm_x = sample_x.mul(2 / (w - 1)).sub(1) if w > 1 else sample_x * 0
+            grid = torch.stack((norm_x, norm_y), dim=-1)
+            sampled = F.grid_sample(x, grid, mode='bilinear', padding_mode='zeros', align_corners=True)
+            sampled = sampled * mask[:, kernel_index:kernel_index + 1]
+            result = result + torch.einsum('nchw,oc->nohw', sampled, self.weight[:, :, iy, ix])
+
+        result = result + self.bias.view(1, -1, 1, 1)
+        return self.act(self.bn(result))
 
     def reset_parameters(self):
         n = self.in_channels

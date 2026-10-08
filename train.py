@@ -1,24 +1,29 @@
 import warnings
+from pathlib import Path
+
 warnings.filterwarnings('ignore')
 from ultralytics import YOLO
 
 if __name__ == '__main__':
-    model = YOLO('ultralytics/cfg/models/YOLOv8n+C3_DCN+DCSP+attention.yaml')
+    project_dir = Path(__file__).resolve().parent
+    model = YOLO(project_dir / 'ultralytics/cfg/models/YOLOv8n+C3_DCN+DCSP+attention.yaml')
     # model.load('yolov8n.pt')lytics/cfg/ # loading pretrain weights
     model.train(
-                data='ultralytics/cfg/datasets/Bump.yaml',
+                data=str(project_dir / 'ultralytics/cfg/datasets/Bump.yaml'),
                 cache=False,
                 imgsz=640,
-                epochs=50,#lowered epoch to test the model
-                batch=16,
+                epochs=30,#lowered epoch to test the model
+                batch=4,
                 close_mosaic=0,
-                workers=4,
+                # Avoid Windows dataloader subprocess crashes (native segfault).
+                workers=0,
                 device='0',
+                pretrained=False,
                 optimizer='SGD', # using SGD
                 amp=False,  # ← ADD THIS LINE
                 # patience=0, # close earlystop
                 # resume='', # last.pt path
                 # fraction=0.2,
-                project='runs/train',
+                project=str(project_dir / 'runs/train'),
                 name='exp',
                 )
